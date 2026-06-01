@@ -95,3 +95,74 @@ docker exec [container_id] nginx -s reload
 
 Проверка доступности страницы статуса по адресу localhost:80/status:
 ![localhost/status](image-22.png)
+
+
+## Part 3. Мини веб-сервер
+  
+Мини-сервер на C и FastCgi [server.c](./server.c), возвращающий страничку "Hello, World!"
+  
+```bash
+# Устанавливаем библиотеки fcgi
+sudo apt-get install libfcgi-dev spawn-fcgi
+
+# Компилируем сервер
+gcc -Wall -Werror -Wextra server.c -lfcgi -o hello
+```
+
+Запускаем сервер `spawn-fcgi -p 8080 ./hello`
+![alt text](image-23.png)
+
+Создаём файл [nginx.conf](./nginx/nginx.conf) для проксирования запросов с порта 81 на 127.0.0.1:8080:
+![alt text](image-25.png)
+
+Запускаем nginx с созданной конфигурацией `sudo nginx -c nginx/nginx.conf`
+
+Проверяем доступность страницы по адресу localhost:81
+
+![alt text](image-24.png)
+
+
+## Part 4. Свой докер
+
+Напишем [Dockerfile](./Dockerfile) для сборки и запуска мини-сервера с nginx
+
+Собираем образ через `docker build -t hello:1.0 .`
+
+Проверяем созданный образ через `docker images`
+
+![docker image](image-26.png)
+
+Запускаем образ с маппингом портов и папки nginx `docker run -d -p 8080:81 -v $(pwd)/nginx:/etc/nginx hello:1.0`
+
+Проверяем доступность страницы по адресу localhost:80:
+![alt text](image-27.png)
+
+Добавляем настройку /status в [nginx.conf](./nginx/nginx.conf)
+
+![nginx /status](image-28.png)
+
+Перезапускаем контейнер `docker restart [container_id]`, проверяем доступность страницы статуса по адресу localhost:80/status:
+
+![localhost/status](image-29.png)
+
+
+## Part 5. Инструмент Dockle
+
+- Устанавливаем dockle
+  
+```bash
+# Скачиваем .deb пакет и устанавливаем
+wget https://github.com/goodwithtech/dockle/releases/download/v0.4.15/dockle_0.4.15_Linux-64bit.deb
+sudo dpkg -i dockle_0.4.15_Linux-64bit.deb
+```
+
+Сканируем образ через `dockle hello:1.0`:
+![результат до](image-31.png)
+
+Добавляем пользователя и HEALTHCHECK в [Dockerfile](./Dockerfile) для устранения WARN и INFO HEALTHCHECK
+
+Пересобираем образ: `docker build -t hello_server:2.0 .`
+
+Повторно сканирум через dockle и убеждаемся в отсутствии ошибок:
+  
+![результат после](image-30.png)
